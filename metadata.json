@@ -1,0 +1,6 @@
+{
+  "name": "Wayline GPS — Privacy-First Journey Tracker",
+  "description": "Local-first GPS journey recorder with continuous route mapping, timestamped route inspection, real-time playback, and GPX import/export.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
