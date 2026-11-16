@@ -64,6 +64,19 @@ test('buildFilteredRoutePoints filters impossible accuracy jumps without mutatin
   assert.ok(filtered[2].cumulativeDistanceMeters < 150);
 });
 
+test('chronological route filtering compares against the last accepted point', () => {
+  const raw: GpsSample[] = [
+    makeSample(37.8, -122.45, 100),
+    makeSample(37.8001, -122.45, 80),
+    makeSample(37.8002, -122.45, 90),
+    makeSample(37.8003, -122.45, 110),
+  ];
+  const filtered = buildFilteredRoutePoints(raw);
+
+  assert.deepEqual(filtered.map((point) => point.rawIndex), [0, 3]);
+  assert.equal(raw.length, 4);
+});
+
 test('inspectRouteAtCoordinate interpolates timestamp and detects multiple visits', () => {
   // Out-and-back route passing near (37.8005, -122.45) at t=5s and again at t=25s
   const raw: GpsSample[] = [

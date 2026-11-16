@@ -20,6 +20,7 @@ export type GpsErrorCode =
   | 'POSITION_UNAVAILABLE'
   | 'TIMEOUT'
   | 'UNSUPPORTED'
+  | 'INVALID_SAMPLE'
   | 'UNKNOWN';
 
 export interface GpsError {

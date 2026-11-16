@@ -21,6 +21,7 @@ import {
 interface HistoryScreenProps {
   journeys: JourneyMetadata[];
   recoveredJourneys: JourneyMetadata[];
+  anotherContextOwnsRecording: boolean;
   loading: boolean;
   error: string | null;
   unit: DistanceUnit;
@@ -35,6 +36,7 @@ interface HistoryScreenProps {
 export const HistoryScreen: React.FC<HistoryScreenProps> = ({
   journeys,
   recoveredJourneys,
+  anotherContextOwnsRecording,
   loading,
   error,
   unit,
@@ -49,6 +51,25 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
   const [pendingDelete, setPendingDelete] = useState<JourneyMetadata | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const handleDelete = async (id: string) => {
+    setActionError(null);
+    try {
+      await onDeleteJourney(id);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not delete this journey.');
+    }
+  };
+
+  const handleExport = async (id: string) => {
+    setActionError(null);
+    try {
+      await onExportGpx(id);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not export this journey.');
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -112,6 +133,12 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
         </div>
 
         {/* Recovery Notice */}
+        {anotherContextOwnsRecording && (
+          <div role="status" className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-sm text-blue-950 dark:text-blue-100">
+            Another Route Tracker tab currently owns GPS recording. This tab will not recover or interrupt that journey.
+          </div>
+        )}
+
         {recoveredJourneys.length > 0 && (
           <div
             role="status"
@@ -155,6 +182,12 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
             className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-sm text-rose-900 dark:text-rose-100"
           >
             {error}
+          </div>
+        )}
+
+        {actionError && (
+          <div role="alert" className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-sm text-rose-900 dark:text-rose-100">
+            {actionError}
           </div>
         )}
 
@@ -244,6 +277,14 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
                           </span>
                         </>
                       )}
+                      {(journey.status === 'recording' || journey.status === 'finalizing') && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                            {journey.status === 'finalizing' ? 'Saving' : 'Recording'}
+                          </span>
+                        </>
+                      )}
                     </div>
 
                     <button
@@ -290,7 +331,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
                   <div className="flex items-center justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
                     <button
                       type="button"
-                      onClick={() => void onExportGpx(journey.id)}
+                      onClick={() => void handleExport(journey.id)}
                       aria-label={`Export GPX for ${journey.name}`}
                       className="min-h-[44px] min-w-[44px] px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap"
                     >
@@ -301,8 +342,9 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
                     <button
                       type="button"
                       onClick={() => setPendingDelete(journey)}
+                      disabled={journey.status === 'recording' || journey.status === 'finalizing'}
                       aria-label={`Delete ${journey.name}`}
-                      className="min-h-[44px] min-w-[44px] rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/60 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors"
+                      className="min-h-[44px] min-w-[44px] rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/60 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -337,7 +379,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
           if (pendingDelete) {
             const id = pendingDelete.id;
             setPendingDelete(null);
-            void onDeleteJourney(id);
+            void handleDelete(id);
           }
         }}
       />

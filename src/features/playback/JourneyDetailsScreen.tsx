@@ -25,6 +25,7 @@ import {
   inspectRouteAtCoordinate,
 } from '../../utils/geo';
 import { getPlaybackFrameAtElapsed } from '../../utils/playback';
+import { CURRENT_STATISTICS_VERSION } from '../../utils/journeyStats';
 import { PlaybackControls } from './PlaybackControls';
 import { RouteInspectorPopup } from './RouteInspectorPopup';
 
@@ -51,6 +52,7 @@ export const JourneyDetailsScreen: React.FC<JourneyDetailsScreenProps> = ({
   const [journey, setJourney] = useState<Journey | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   // Playback state
@@ -69,6 +71,25 @@ export const JourneyDetailsScreen: React.FC<JourneyDetailsScreenProps> = ({
   speedRef.current = speed;
   const isPlayingRef = useRef(false);
   isPlayingRef.current = isPlaying;
+
+  const handleExport = async () => {
+    setActionError(null);
+    try {
+      await onExportGpx(journeyId);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not export this journey.');
+    }
+  };
+
+  const handleDelete = async () => {
+    setActionError(null);
+    try {
+      await onDeleteJourney(journeyId);
+      onBack();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not delete this journey.');
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -104,7 +125,12 @@ export const JourneyDetailsScreen: React.FC<JourneyDetailsScreenProps> = ({
   }, [journeyId, loadJourney]);
 
   const filteredPoints = useMemo(
-    () => (journey ? buildFilteredRoutePoints(journey.rawSamples) : []),
+    () => (journey
+      ? buildFilteredRoutePoints(
+          journey.rawSamples,
+          journey.statisticsVersion ?? CURRENT_STATISTICS_VERSION
+        )
+      : []),
     [journey]
   );
 
@@ -287,6 +313,11 @@ export const JourneyDetailsScreen: React.FC<JourneyDetailsScreenProps> = ({
       className="h-full w-full flex flex-col bg-slate-50 dark:bg-slate-950 overflow-hidden"
       data-testid="journey-details-screen"
     >
+      {actionError && (
+        <div role="alert" className="px-4 py-3 bg-rose-50 dark:bg-rose-950/60 border-b border-rose-200 dark:border-rose-800 text-sm text-rose-900 dark:text-rose-100">
+          {actionError}
+        </div>
+      )}
       {/* Details Header & Stats Strip */}
       <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-3 shrink-0 z-20">
         <div className="max-w-7xl mx-auto flex flex-col gap-3">
@@ -313,7 +344,7 @@ export const JourneyDetailsScreen: React.FC<JourneyDetailsScreenProps> = ({
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={() => void onExportGpx(journey.id)}
+                onClick={() => void handleExport()}
                 className="min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-medium text-slate-800 dark:text-slate-100 flex items-center gap-1.5 transition-colors whitespace-nowrap"
               >
                 <Download className="w-4 h-4" />
@@ -438,7 +469,7 @@ export const JourneyDetailsScreen: React.FC<JourneyDetailsScreenProps> = ({
         onCancel={() => setConfirmDeleteOpen(false)}
         onConfirm={() => {
           setConfirmDeleteOpen(false);
-          void onDeleteJourney(journey.id).then(onBack);
+          void handleDelete();
         }}
       />
     </div>

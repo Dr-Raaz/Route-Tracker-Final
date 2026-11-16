@@ -34,10 +34,16 @@ export function useTracking(devTestMode: boolean) {
     [devTestMode]
   );
 
+  const retryPersistence = useCallback(
+    () => trackingEngine.retryPersistence(),
+    []
+  );
+
   return {
     tracking: state,
     startTracking,
     stopTracking,
     locateOnce,
+    retryPersistence,
   };
 }

@@ -14,10 +14,11 @@ import { useSettings } from './hooks/useSettings';
 import { useTracking } from './hooks/useTracking';
 
 export default function App() {
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, persistenceError: settingsPersistenceError } = useSettings();
   const {
     journeys,
     recoveredJourneys,
+    anotherContextOwnsRecording,
     loading: journeysLoading,
     error: journeysError,
     refresh: refreshJourneys,
@@ -29,7 +30,7 @@ export default function App() {
     dismissRecoveryBanner,
   } = useJourneys();
 
-  const { tracking, startTracking, stopTracking, locateOnce } = useTracking(
+  const { tracking, startTracking, stopTracking, locateOnce, retryPersistence } = useTracking(
     settings.devTestMode
   );
 
@@ -37,7 +38,7 @@ export default function App() {
   const [selectedJourneyId, setSelectedJourneyId] = useState<string | null>(null);
 
   const isRecording =
-    tracking.phase === 'recording' || tracking.phase === 'requesting-permission';
+    tracking.activeJourneyId !== null || tracking.phase === 'requesting-permission';
 
   const handleNavigate = useCallback((route: 'live' | 'history' | 'settings') => {
     setActiveRoute(route);
@@ -91,6 +92,11 @@ export default function App() {
           onEnableDevTestMode={() => updateSettings({ devTestMode: true })}
           onStartTracking={startTracking}
           onStopTracking={handleStopAndRefresh}
+          onRetryPersistence={async () => {
+            const saved = await retryPersistence();
+            if (saved) await refreshJourneys();
+            return saved;
+          }}
           onLocateOnce={locateOnce}
           onOpenJourney={handleOpenJourney}
         />
@@ -100,6 +106,7 @@ export default function App() {
         <HistoryScreen
           journeys={journeys}
           recoveredJourneys={recoveredJourneys}
+          anotherContextOwnsRecording={anotherContextOwnsRecording}
           loading={journeysLoading}
           error={journeysError}
           unit={settings.unit}
@@ -129,6 +136,7 @@ export default function App() {
           settings={settings}
           journeyCount={journeys.length}
           isRecording={isRecording}
+          persistenceError={settingsPersistenceError}
           onUpdateSettings={updateSettings}
           onImportGpxFile={handleImportGpxFile}
           onClearAllData={clearAll}

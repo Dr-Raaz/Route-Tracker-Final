@@ -11,6 +11,7 @@ function applyThemeClass(theme: AppSettings['theme']) {
 export function useSettings() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [loaded, setLoaded] = useState(false);
+  const [persistenceError, setPersistenceError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -29,7 +30,10 @@ export function useSettings() {
     setSettings((prev) => {
       const next = { ...prev, ...patch };
       applyThemeClass(next.theme);
-      void indexedDbService.saveSettings(next);
+      void indexedDbService.saveSettings(next).then(
+        () => setPersistenceError(null),
+        (error) => setPersistenceError(error instanceof Error ? error.message : 'Could not save settings locally.')
+      );
       return next;
     });
   }, []);
@@ -37,6 +41,7 @@ export function useSettings() {
   return {
     settings,
     loaded,
+    persistenceError,
     updateSettings,
   };
 }

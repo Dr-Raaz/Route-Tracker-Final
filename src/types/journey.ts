@@ -1,6 +1,6 @@
 import type { GpsProviderKind, GpsSample } from './gps';
 
-export type JourneyStatus = 'recording' | 'completed' | 'interrupted';
+export type JourneyStatus = 'recording' | 'finalizing' | 'completed' | 'interrupted';
 export type JourneySource = 'gps' | 'gpx' | 'dev-test';
 
 export interface GeoCoordinate {
@@ -29,6 +29,14 @@ export interface JourneyMetadata {
   providerKind: GpsProviderKind;
   /** Compact simplified polyline [lng, lat][] for instant SVG previews in History */
   previewCoordinates: [number, number][];
+  /** Internal idempotent append checkpoint; equals the committed sample count. */
+  sampleRevision?: number;
+  /** Calculation rules used for this journey. */
+  statisticsVersion?: number;
+  /** Stable token for retrying a finalization attempt. */
+  finalizationToken?: string | null;
+  checkpointCaptureAt?: number;
+  finalizationBoundary?: number;
 }
 
 export interface Journey extends JourneyMetadata {

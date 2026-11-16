@@ -81,12 +81,16 @@ export function isDuplicateSample(prev: GpsSample | undefined, next: GpsSample):
  * Raw samples are never discarded; this function only builds a clean polyline
  * with cumulative distances while guarding against impossible accuracy jumps.
  */
-export function buildFilteredRoutePoints(rawSamples: GpsSample[]): FilteredRoutePoint[] {
+export function buildFilteredRoutePoints(
+  rawSamples: GpsSample[],
+  version = 1
+): FilteredRoutePoint[] {
   if (rawSamples.length === 0) return [];
 
   const result: FilteredRoutePoint[] = [];
   let cumulativeDistance = 0;
 
+  let lastAcceptedTimestamp = -Infinity;
   for (let i = 0; i < rawSamples.length; i++) {
     const sample = rawSamples[i];
     if (!Number.isFinite(sample.latitude) || !Number.isFinite(sample.longitude)) {
@@ -99,8 +103,13 @@ export function buildFilteredRoutePoints(rawSamples: GpsSample[]): FilteredRoute
         rawIndex: i,
         cumulativeDistanceMeters: 0,
       });
+      lastAcceptedTimestamp = sample.timestamp;
       continue;
     }
+
+    // Version 1 routes are chronological. Rejected measurements stay in rawSamples,
+    // and the comparison is always against the last accepted route point.
+    if (version >= 1 && sample.timestamp <= lastAcceptedTimestamp) continue;
 
     const prev = result[result.length - 1].sample;
     const distMeters = haversineDistanceMeters(
@@ -128,6 +137,7 @@ export function buildFilteredRoutePoints(rawSamples: GpsSample[]): FilteredRoute
       rawIndex: i,
       cumulativeDistanceMeters: cumulativeDistance,
     });
+    lastAcceptedTimestamp = sample.timestamp;
   }
 
   return result;

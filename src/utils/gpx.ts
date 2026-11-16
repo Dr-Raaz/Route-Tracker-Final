@@ -1,6 +1,6 @@
 import type { GpsSample } from '../types/gps';
 import type { Journey } from '../types/journey';
-import { buildFilteredRoutePoints, buildPreviewCoordinates } from './geo';
+import { calculateJourneyStatistics, CURRENT_STATISTICS_VERSION } from './journeyStats';
 
 function escapeXml(value: string): string {
   return value
@@ -166,47 +166,34 @@ export function parseGpxToJourney(
 
   samples.sort((a, b) => a.timestamp - b.timestamp);
 
-  const filtered = buildFilteredRoutePoints(samples);
   const startedAt = samples[0].timestamp;
   const endedAt = samples[samples.length - 1].timestamp;
-  const durationMs = Math.max(0, endedAt - startedAt);
-  const distanceMeters =
-    filtered.length > 0 ? filtered[filtered.length - 1].cumulativeDistanceMeters : 0;
-
-  const averageSpeedMps =
-    durationMs > 0 ? distanceMeters / (durationMs / 1000) : null;
-
-  const speeds = samples
-    .map((s) => s.speed)
-    .filter((v): v is number => v !== null && Number.isFinite(v));
-  const maxSpeedMps = speeds.length > 0 ? Math.max(...speeds) : null;
-
-  const id = `gpx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const stats = calculateJourneyStatistics(samples, startedAt, endedAt, CURRENT_STATISTICS_VERSION);
+  const id = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? `gpx-${crypto.randomUUID()}`
+    : `gpx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${Math.random().toString(36).slice(2, 8)}`;
 
   return {
     id,
     name,
     createdAt: Date.now(),
     startedAt,
-    endedAt,
-    durationMs,
-    distanceMeters,
-    averageSpeedMps,
-    maxSpeedMps,
+    endedAt: stats.endedAt,
+    durationMs: stats.durationMs,
+    distanceMeters: stats.distanceMeters,
+    averageSpeedMps: stats.averageSpeedMps,
+    maxSpeedMps: stats.maxSpeedMps,
     sampleCount: samples.length,
-    filteredPointCount: filtered.length,
-    startLocation: {
-      latitude: samples[0].latitude,
-      longitude: samples[0].longitude,
-    },
-    endLocation: {
-      latitude: samples[samples.length - 1].latitude,
-      longitude: samples[samples.length - 1].longitude,
-    },
+    filteredPointCount: stats.filteredPointCount,
+    startLocation: stats.startLocation,
+    endLocation: stats.endLocation,
     status: 'completed',
     source: 'gpx',
     providerKind: 'browser-geolocation',
-    previewCoordinates: buildPreviewCoordinates(filtered),
+    previewCoordinates: stats.previewCoordinates,
+    sampleRevision: samples.length,
+    statisticsVersion: CURRENT_STATISTICS_VERSION,
+    finalizationToken: null,
     rawSamples: samples,
   };
 }

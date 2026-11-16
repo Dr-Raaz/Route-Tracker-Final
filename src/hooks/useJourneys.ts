@@ -6,6 +6,7 @@ import { exportJourneyToGpx, parseGpxToJourney } from '../utils/gpx';
 export function useJourneys() {
   const [journeys, setJourneys] = useState<JourneyMetadata[]>([]);
   const [recoveredJourneys, setRecoveredJourneys] = useState<JourneyMetadata[]>([]);
+  const [anotherContextOwnsRecording, setAnotherContextOwnsRecording] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,22 +27,23 @@ export function useJourneys() {
     let active = true;
     (async () => {
       try {
-        const recovered = await indexedDbService.recoverInterruptedJourneys();
-        if (active && recovered.length > 0) {
-          setRecoveredJourneys(recovered);
-        }
-        const list = await indexedDbService.listJourneys();
+        const recovery = await indexedDbService.recoverInterruptedJourneys();
         if (active) {
-          setJourneys(list);
+          setRecoveredJourneys(recovery.recoveredJourneys);
+          setAnotherContextOwnsRecording(recovery.anotherContextOwnsRecording);
         }
       } catch (err) {
         if (active) {
           setError(err instanceof Error ? err.message : 'Unable to access IndexedDB storage.');
         }
+      }
+      try {
+        const list = await indexedDbService.listJourneys();
+        if (active) setJourneys(list);
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : 'Unable to access IndexedDB storage.');
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
     })();
 
@@ -58,8 +60,9 @@ export function useJourneys() {
     async (id: string, newName: string) => {
       const full = await indexedDbService.getJourney(id);
       if (!full) return;
+      const { rawSamples: _rawSamples, ...metadata } = full;
       const updated: JourneyMetadata = {
-        ...full,
+        ...metadata,
         name: newName.trim() || full.name,
       };
       await indexedDbService.upsertJourneyMetadata(updated);
@@ -108,9 +111,9 @@ export function useJourneys() {
     async (gpxXml: string, filename?: string): Promise<Journey> => {
       const baseName = filename ? filename.replace(/\.gpx$/i, '') : 'Imported GPX Journey';
       const journey = parseGpxToJourney(gpxXml, baseName);
-      await indexedDbService.saveCompleteJourney(journey);
+      const saved = await indexedDbService.saveCompleteJourney(journey);
       await refresh();
-      return journey;
+      return saved;
     },
     [refresh]
   );
@@ -122,6 +125,7 @@ export function useJourneys() {
   return {
     journeys,
     recoveredJourneys,
+    anotherContextOwnsRecording,
     loading,
     error,
     refresh,

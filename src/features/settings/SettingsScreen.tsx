@@ -15,6 +15,7 @@ interface SettingsScreenProps {
   settings: AppSettings;
   journeyCount: number;
   isRecording: boolean;
+  persistenceError: string | null;
   onUpdateSettings: (patch: Partial<AppSettings>) => void;
   onImportGpxFile: (xmlText: string, fileName: string) => Promise<void>;
   onClearAllData: () => Promise<void>;
@@ -24,6 +25,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   settings,
   journeyCount,
   isRecording,
+  persistenceError,
   onUpdateSettings,
   onImportGpxFile,
   onClearAllData,
@@ -79,6 +81,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-sm text-rose-900 dark:text-rose-100"
           >
             {errorMsg}
+          </div>
+        )}
+
+        {persistenceError && (
+          <div role="alert" className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-sm text-rose-900 dark:text-rose-100">
+            Settings could not be saved to local storage: {persistenceError}
           </div>
         )}
 
@@ -278,8 +286,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         onCancel={() => setConfirmClearOpen(false)}
         onConfirm={() => {
           setConfirmClearOpen(false);
+          setErrorMsg(null);
           void onClearAllData().then(() => {
             setStatusMsg('All local journey data has been cleared.');
+          }).catch((err) => {
+            setErrorMsg(err instanceof Error ? err.message : 'Could not clear local journey data.');
           });
         }}
       />

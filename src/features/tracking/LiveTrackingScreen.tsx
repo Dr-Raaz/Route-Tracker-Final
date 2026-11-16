@@ -30,6 +30,7 @@ interface LiveTrackingScreenProps {
   onEnableDevTestMode: () => void;
   onStartTracking: (customName?: string) => Promise<boolean>;
   onStopTracking: (customName?: string) => Promise<Journey | null>;
+  onRetryPersistence: () => Promise<Journey | null>;
   onLocateOnce: () => Promise<unknown>;
   onOpenJourney: (journeyId: string) => void;
 }
@@ -43,6 +44,7 @@ export const LiveTrackingScreen: React.FC<LiveTrackingScreenProps> = ({
   onEnableDevTestMode,
   onStartTracking,
   onStopTracking,
+  onRetryPersistence,
   onLocateOnce,
   onOpenJourney,
 }) => {
@@ -51,8 +53,9 @@ export const LiveTrackingScreen: React.FC<LiveTrackingScreenProps> = ({
   const [justSavedJourney, setJustSavedJourney] = useState<Journey | null>(null);
   const [journeyLabel, setJourneyLabel] = useState('');
 
-  const isRecording = tracking.phase === 'recording';
+  const isRecording = tracking.activeJourneyId !== null;
   const isRequesting = tracking.phase === 'requesting-permission';
+  const isSaving = tracking.phase === 'stopping';
 
   const routeCoordinates = useMemo<[number, number][]>(
     () =>
@@ -86,10 +89,26 @@ export const LiveTrackingScreen: React.FC<LiveTrackingScreenProps> = ({
   };
 
   const handleStop = async () => {
-    const saved = await onStopTracking(journeyLabel.trim() || undefined);
-    setJourneyLabel('');
-    if (saved) {
-      setJustSavedJourney(saved);
+    try {
+      const saved = await onStopTracking(journeyLabel.trim() || undefined);
+      if (saved) {
+        setJourneyLabel('');
+        setJustSavedJourney(saved);
+      }
+    } catch {
+      // Engine state presents persistence and finalization failures.
+    }
+  };
+
+  const handleRetryPersistence = async () => {
+    try {
+      const saved = await onRetryPersistence();
+      if (saved) {
+        setJourneyLabel('');
+        setJustSavedJourney(saved);
+      }
+    } catch {
+      // Keep the recoverable error visible for another attempt.
     }
   };
 
@@ -126,7 +145,7 @@ export const LiveTrackingScreen: React.FC<LiveTrackingScreenProps> = ({
               />
               <span className="font-medium text-slate-800 dark:text-slate-100">
                 {isRecording
-                  ? 'Recording · 5s interval'
+                  ? tracking.phase === 'stopping' ? 'Saving journey…' : 'Recording GPS measurements'
                   : isRequesting
                     ? 'Acquiring GPS fix…'
                     : 'GPS Ready'}
@@ -219,6 +238,16 @@ export const LiveTrackingScreen: React.FC<LiveTrackingScreenProps> = ({
                   <span>Enable Development GPS Test Mode to try with a sample route</span>
                 </button>
               )}
+            </div>
+          )}
+
+          {tracking.persistenceError && (
+            <div role="alert" className="px-3.5 py-2.5 rounded-xl bg-rose-50/95 dark:bg-rose-950/90 border border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-100 shadow-sm text-xs space-y-2">
+              <p>{tracking.persistenceError}</p>
+              <p>Persisted {tracking.persistedSampleCount} of {tracking.rawSamples.length} received measurements.</p>
+              <button type="button" onClick={() => void handleRetryPersistence()} className="font-semibold underline hover:no-underline">
+                {tracking.finalizationPending ? 'Retry final save' : 'Retry saving measurements'}
+              </button>
             </div>
           )}
 
@@ -337,7 +366,7 @@ export const LiveTrackingScreen: React.FC<LiveTrackingScreenProps> = ({
               </button>
             ) : (
               <div className="flex items-center gap-2 shrink-0">
-                <button
+                {tracking.phase === 'recording' && <button
                   type="button"
                   onClick={() => setFollowPosition((prev) => !prev)}
                   aria-pressed={followPosition}
@@ -350,15 +379,16 @@ export const LiveTrackingScreen: React.FC<LiveTrackingScreenProps> = ({
                 >
                   <Compass className="w-4 h-4" />
                   <span>{followPosition ? 'Following' : 'Free Pan'}</span>
-                </button>
+                </button>}
 
                 <button
                   type="button"
-                  onClick={() => void handleStop()}
+                  onClick={() => void (tracking.phase === 'error' ? handleRetryPersistence() : handleStop())}
+                  disabled={isSaving}
                   className="min-h-[48px] px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors whitespace-nowrap shrink-0 shadow-sm"
                 >
                   <Square className="w-4 h-4 fill-current" />
-                  <span>Stop &amp; Save</span>
+                  <span>{isSaving ? 'Saving…' : tracking.phase === 'error' ? 'Retry Save' : 'Stop & Save'}</span>
                 </button>
               </div>
             )}
