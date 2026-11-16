@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
+  ArrowLeft,
   CheckCircle2,
   FlaskConical,
   HardDrive,
@@ -19,6 +20,7 @@ interface SettingsScreenProps {
   onUpdateSettings: (patch: Partial<AppSettings>) => void;
   onImportGpxFile: (xmlText: string, fileName: string) => Promise<void>;
   onClearAllData: () => Promise<void>;
+  onBack?: () => void;
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
@@ -29,6 +31,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onUpdateSettings,
   onImportGpxFile,
   onClearAllData,
+  onBack,
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
@@ -57,11 +60,17 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     >
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         <div>
+          {onBack && (
+            <button type="button" onClick={onBack} className="mb-3 min-h-[40px] px-1 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 flex items-center gap-2 transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to My Profile</span>
+            </button>
+          )}
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
             Settings &amp; Local Storage
           </h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-            Privacy-first configuration. All location data remains exclusively on this device.
+            Privacy-first configuration. All journey data remains exclusively on this device.
           </p>
         </div>
 

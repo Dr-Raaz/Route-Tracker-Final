@@ -5,9 +5,12 @@
 
 import { useCallback, useState } from 'react';
 import { NavShell, type AppRoute } from './components/NavShell';
+import { ChatScreen } from './features/chat/ChatScreen';
+import { ConversationScreen } from './features/chat/ConversationScreen';
+import { ConnectFriendsScreen } from './features/friends/ConnectFriendsScreen';
 import { HistoryScreen } from './features/history/HistoryScreen';
 import { JourneyDetailsScreen } from './features/playback/JourneyDetailsScreen';
-import { SettingsScreen } from './features/settings/SettingsScreen';
+import { MyProfileScreen } from './features/profile/MyProfileScreen';
 import { LiveTrackingScreen } from './features/tracking/LiveTrackingScreen';
 import { useJourneys } from './hooks/useJourneys';
 import { useSettings } from './hooks/useSettings';
@@ -40,7 +43,7 @@ export default function App() {
   const isRecording =
     tracking.activeJourneyId !== null || tracking.phase === 'requesting-permission';
 
-  const handleNavigate = useCallback((route: 'live' | 'history' | 'settings') => {
+  const handleNavigate = useCallback((route: 'live' | 'history' | 'chat' | 'friends' | 'profile') => {
     setActiveRoute(route);
   }, []);
 
@@ -131,11 +134,17 @@ export default function App() {
         />
       )}
 
-      {activeRoute === 'settings' && (
-        <SettingsScreen
+      {activeRoute === 'chat' && <ChatScreen onOpenConversation={() => setActiveRoute('conversation')} />}
+
+      {activeRoute === 'conversation' && <ConversationScreen onBack={() => setActiveRoute('chat')} />}
+
+      {activeRoute === 'friends' && <ConnectFriendsScreen />}
+
+      {activeRoute === 'profile' && (
+        <MyProfileScreen
           settings={settings}
           journeyCount={journeys.length}
-          isRecording={isRecording}
+          tracking={tracking}
           persistenceError={settingsPersistenceError}
           onUpdateSettings={updateSettings}
           onImportGpxFile={handleImportGpxFile}
