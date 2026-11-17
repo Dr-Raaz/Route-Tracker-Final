@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Supabase local temporary files
+supabase/.temp/
+
+# Local debug artifacts
+supabase-debug-full.txt
+supabase-start-debug.txt
+supabase-trace.txt
+realtime-tini

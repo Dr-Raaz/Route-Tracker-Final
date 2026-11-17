@@ -13,10 +13,12 @@ import { JourneyDetailsScreen } from './features/playback/JourneyDetailsScreen';
 import { MyProfileScreen } from './features/profile/MyProfileScreen';
 import { LiveTrackingScreen } from './features/tracking/LiveTrackingScreen';
 import { useJourneys } from './hooks/useJourneys';
+import { useAuth } from './hooks/useAuth';
 import { useSettings } from './hooks/useSettings';
 import { useTracking } from './hooks/useTracking';
 
 export default function App() {
+  const auth = useAuth();
   const { settings, updateSettings, persistenceError: settingsPersistenceError } = useSettings();
   const {
     journeys,
@@ -146,9 +148,16 @@ export default function App() {
           journeyCount={journeys.length}
           tracking={tracking}
           persistenceError={settingsPersistenceError}
+          auth={auth.state}
+          authBusy={auth.isBusy}
           onUpdateSettings={updateSettings}
           onImportGpxFile={handleImportGpxFile}
           onClearAllData={clearAll}
+          onSendOtp={auth.sendOtp}
+          onVerifyOtp={auth.verifyOtp}
+          onSaveProfile={auth.saveProfile}
+          onSignOut={auth.signOut}
+          onRetryProfileLoad={auth.retryProfileLoad}
         />
       )}
     </NavShell>
